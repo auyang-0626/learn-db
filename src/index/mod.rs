@@ -1,3 +1,7 @@
+use std::collections::hash_map::DefaultHasher;
+use std::hash::{Hash, Hasher};
+use std::sync::Arc;
+
 mod concurrent_hash_index;
 
 /// 索引中的key，注意，
@@ -11,11 +15,12 @@ pub struct Node {
     // value大小
     length: u32,
     // 下一个node
-    next_node:Option<Node>,
+    next_node: Option<Arc<Node>>,
 }
 
-/// 索引接口
-pub trait Index {
-    fn put(key: &String);
-    fn get(key: &String) -> Node;
+/// 计算hash
+pub fn calc_hash(key: &String) -> u64 {
+    let mut hasher = DefaultHasher::new();
+    key.hash(&mut hasher);
+    hasher.finish()
 }
