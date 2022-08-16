@@ -1,26 +1,42 @@
-use std::collections::hash_map::DefaultHasher;
-use std::hash::{Hash, Hasher};
-use std::sync::Arc;
+mod dynamic_parallel_index;
+mod linked_hash_set;
+mod parallel_index;
+pub mod dynamic_index;
 
-mod concurrent_hash_index;
-
-/// 索引中的key，注意，
-pub struct Node {
-    // key的hash值
-    hash: u64,
+/// 数据的位置
+#[derive(Debug, Clone, PartialEq)]
+pub struct DataPosition {
     // 文件id
     file_id: u32,
     // 偏移量
     offset: u32,
     // value大小
     length: u32,
-    // 下一个node
-    next_node: Option<Arc<Node>>,
 }
 
-/// 计算hash
-pub fn calc_hash(key: &String) -> u64 {
-    let mut hasher = DefaultHasher::new();
-    key.hash(&mut hasher);
-    hasher.finish()
+impl DataPosition {
+    pub fn new(file_id: u32, offset: u32, length: u32) -> Self {
+        DataPosition {
+            file_id,
+            offset,
+            length,
+        }
+    }
 }
+
+type Link = Option<Box<Node>>;
+
+/// 索引节点
+#[derive(Debug)]
+pub struct Node {
+    hash: u64,
+    dp: DataPosition,
+    next: Link,
+}
+
+impl Node {
+    pub fn update_dp(&mut self, dp: DataPosition) {
+        self.dp = dp;
+    }
+}
+
