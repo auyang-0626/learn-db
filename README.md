@@ -1,26 +1,13 @@
 # learn-db
-Bitcask 引擎实现，
+使用rust实现的基于 [Bitcask 引擎](https://www.51cto.com/article/697752.html) 的kv数据库。
 
-## 索引结构
-```rust
-struct Node {
-    // key的hash值
-    hash: u64,
-    // 文件id
-    file_id: u32,
-    // 偏移量
-    offset: u32,
-    // value大小
-    length: u32
-}
-```
+## 索引篇
+为了快速查找，所有的索引数据都是放在内存中，可以简单的理解为 HashMap.
 
-可以看到，node不记录原始key的值，这样是为了让node大小可控，占用的内存更少。
-node的大小是 8+4+4 +4= 20字节，1G内存可存储53687091个key。
+不过为了能够并发的查询和写入，所以使用了分段锁（数组+链表）；
 
-value记录的是文件系统的偏移量，考虑到hash碰撞，value其实是个链表，
-需要读取后再根据key比对，才能找到实际值。
+另外，数据库运行的过程中，索引数量会不断的增减，所以也需要具备动态扩缩容的能力。
 
-hash算法一定要尽量避免碰撞
+具体实现：src/index/dynamic_index.rs
 
-[Bitcask 引擎]https://www.51cto.com/article/697752.html
+

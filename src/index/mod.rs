@@ -1,10 +1,11 @@
-mod dynamic_parallel_index;
 mod linked_hash_set;
 mod parallel_index;
 pub mod dynamic_index;
 
+use serde::{Deserialize, Serialize};
+
 /// 数据的位置
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq,Serialize, Deserialize)]
 pub struct DataPosition {
     // 文件id
     file_id: u32,

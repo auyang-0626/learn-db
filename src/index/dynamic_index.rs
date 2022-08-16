@@ -19,10 +19,10 @@ struct DynamicParallelIndex {
 
 /// 动态扩缩容的索引结构
 /// 扩容：当 DynamicParallelIndex 的size 超过阙值时，就会触发扩容
-///      首先会有专门的扩容线程组，遍历 ParallelIndex.table ，依次移动 LinkedHashSet，完成后会把LinkedHashSet编辑为move
-///   其它读写线程，如果遇到标记为 move 的LinkedHashSet，就会休眠，等待扩容完成
+///   移动期间，并不会阻塞其它线程的插入和查询
 #[derive(Clone)]
 pub struct DynamicParallelIndexWrapper {
+    // 只有扩缩容期间，才会申请写锁，其它不管是读取还是写入数据，都申请读锁，所以不用担心这里的并行度
     inner: Arc<RwLock<DynamicParallelIndex>>,
 }
 
@@ -198,7 +198,7 @@ impl DynamicParallelIndexWrapper {
             inner_guard_mut.new_parallel_index = Some(new_index);
             true
         } else {
-            info!("curr_size={},parallel={},无需扩容！", curr_size, inner_guard.parallel_index.get_parallel());
+            // info!("curr_size={},parallel={},无需扩容！", curr_size, inner_guard.parallel_index.get_parallel());
             false
         }
     }
