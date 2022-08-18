@@ -30,7 +30,7 @@ type Link = Option<Box<Node>>;
 /// 索引节点
 #[derive(Debug)]
 pub struct Node {
-    hash: u64,
+    key: String,
     dp: DataPosition,
     next: Link,
 }

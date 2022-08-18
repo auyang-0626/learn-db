@@ -39,10 +39,10 @@ impl DynamicParallelIndexWrapper {
         wrapper
     }
 
-    pub async fn push(&self, hash: u64, dp: DataPosition) {
+    pub async fn push(&self, key: &String, dp: DataPosition) {
         let push_function = |inner: Arc<RwLock<DynamicParallelIndex>>, dp: DataPosition| async move {
             let index_gurad = inner.read().await;
-            let success = index_gurad.parallel_index.push(hash, dp.clone()).await;
+            let success = index_gurad.parallel_index.push(key, dp.clone()).await;
             if success {
                 return success;
             } else {
@@ -54,7 +54,7 @@ impl DynamicParallelIndexWrapper {
                         return false;
                     }
                     Some(p) => {
-                        return p.push(hash, dp).await;
+                        return p.push(key, dp).await;
                     }
                 }
             }
@@ -63,10 +63,10 @@ impl DynamicParallelIndexWrapper {
         while !push_function(self.inner.clone(), dp.clone()).await {}
     }
 
-    pub async fn del(&self, hash: u64) {
+    pub async fn del(&self, key: &String) {
         let del_function = |inner: Arc<RwLock<DynamicParallelIndex>>| async move {
             let index_gurad = inner.read().await;
-            let success = index_gurad.parallel_index.del(hash).await;
+            let success = index_gurad.parallel_index.del(key).await;
             if success {
                 return success;
             } else {
@@ -78,7 +78,7 @@ impl DynamicParallelIndexWrapper {
                         return false;
                     }
                     Some(p) => {
-                        return p.del(hash).await;
+                        return p.del(key).await;
                     }
                 }
             }
@@ -87,10 +87,10 @@ impl DynamicParallelIndexWrapper {
         while !del_function(self.inner.clone()).await {}
     }
 
-    pub async fn find(&self, hash: u64) -> Option<DataPosition> {
+    pub async fn find(&self, key: &String) -> Option<DataPosition> {
         let find_function = |inner: Arc<RwLock<DynamicParallelIndex>>| async move {
             let index_gurad = inner.read().await;
-            let (success, res) = index_gurad.parallel_index.find(hash).await;
+            let (success, res) = index_gurad.parallel_index.find(key).await;
             if success {
                 return (success, res);
             } else {
@@ -102,7 +102,7 @@ impl DynamicParallelIndexWrapper {
                         return (false, None);
                     }
                     Some(p) => {
-                        return p.find(hash).await;
+                        return p.find(key).await;
                     }
                 }
             }
@@ -151,8 +151,8 @@ impl DynamicParallelIndexWrapper {
 
                                         if !set.is_moved() {
                                             while let Some(node) = set.pop() {
-                                                let Node { hash, dp, .. } = *node;
-                                                new_index.push(hash, dp).await;
+                                                let Node { key, dp, .. } = *node;
+                                                new_index.push(&key, dp).await;
                                             }
                                             // 每移动完一个 linked_hash_set，就标记为已经移动
                                             set.set_moved(true);
@@ -219,16 +219,16 @@ mod tests {
         init_log();
 
         for i in 0..1024 {
-            index.push(i, DataPosition::new(i as u32, i as u32, i as u32)).await;
+            index.push(&i.to_string(), DataPosition::new(i as u32, i as u32, i as u32)).await;
         }
         assert_eq!(index.size().await, 1024);
 
-        assert_eq!(index.find(1).await, Some(DataPosition::new(1, 1, 1)));
-        assert_eq!(index.find(8).await, Some(DataPosition::new(8, 8, 8)));
-        assert_eq!(index.find(80000).await, None);
+        assert_eq!(index.find(&String::from("1")).await, Some(DataPosition::new(1, 1, 1)));
+        assert_eq!(index.find(&String::from("8")).await, Some(DataPosition::new(8, 8, 8)));
+        assert_eq!(index.find(&String::from("80000")).await, None);
 
-        index.del(8).await;
-        assert_eq!(index.find(8).await, None);
+        index.del(&String::from("8")).await;
+        assert_eq!(index.find(&String::from("8")).await, None);
         //  std::thread::sleep(std::time::Duration::from_secs(10));
     }
 

@@ -13,6 +13,8 @@ use crate::index::dynamic_index::DynamicParallelIndexWrapper;
 mod index;
 mod custom_err;
 mod http_param;
+mod db;
+mod store;
 
 #[actix_web::main]
 async fn main() -> std::io::Result<()> {
@@ -40,7 +42,7 @@ async fn hello() -> impl Responder {
 #[actix_web::get("/get/{key}")]
 async fn find(key: web::Path<String>, index: web::Data<DynamicParallelIndexWrapper>) -> impl Responder {
     let key = key.into_inner();
-    let res = index.find(calc_hash(&key)).await;
+    let res = index.find(&key).await;
     info!("url=/get/{},value={:?}", &key, res);
     web::Json(View::success(res))
 }
@@ -48,7 +50,7 @@ async fn find(key: web::Path<String>, index: web::Data<DynamicParallelIndexWrapp
 #[actix_web::post("/set")]
 async fn push(param: web::Json<SetParam>, index: web::Data<DynamicParallelIndexWrapper>) -> impl Responder {
     let param = param.into_inner();
-    index.push(calc_hash(&param.key), DataPosition::new(
+    index.push(&param.key, DataPosition::new(
         1, 1, 1,
     )).await;
     info!("url = /set");
