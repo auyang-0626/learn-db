@@ -8,11 +8,11 @@ use serde::{Deserialize, Serialize};
 #[derive(Debug, Clone, PartialEq,Serialize, Deserialize)]
 pub struct DataPosition {
     // 文件id
-    file_id: u32,
+    pub file_id: u32,
     // 偏移量
-    offset: u32,
+    pub offset: u32,
     // value大小
-    length: u32,
+    pub length: u32,
 }
 
 impl DataPosition {

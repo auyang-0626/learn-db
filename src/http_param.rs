@@ -1,7 +1,5 @@
 use serde::{Deserialize, Serialize};
 
-use crate::index::DataPosition;
-
 #[derive(Serialize)]
 pub struct View<T> {
     code: u32,
@@ -18,7 +16,7 @@ impl<T> View<T> {
 }
 
 #[derive(Deserialize, Serialize)]
-pub struct SetParam {
+pub struct DataItem {
     pub key: String,
     pub value: String,
 }

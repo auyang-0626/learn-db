@@ -4,16 +4,14 @@ use std::path::PathBuf;
 
 use actix_web::{App, HttpResponse, HttpServer, Responder, web};
 use log::info;
-use serde::Serialize;
 
-use crate::http_param::{ SetParam, View};
+use crate::http_param::{DataItem, View};
 use crate::index::DataPosition;
 use crate::index::dynamic_index::DynamicParallelIndexWrapper;
 
 mod index;
 mod custom_err;
 mod http_param;
-mod db;
 mod store;
 
 #[actix_web::main]
@@ -48,7 +46,7 @@ async fn find(key: web::Path<String>, index: web::Data<DynamicParallelIndexWrapp
 }
 
 #[actix_web::post("/set")]
-async fn push(param: web::Json<SetParam>, index: web::Data<DynamicParallelIndexWrapper>) -> impl Responder {
+async fn push(param: web::Json<DataItem>, index: web::Data<DynamicParallelIndexWrapper>) -> impl Responder {
     let param = param.into_inner();
     index.push(&param.key, DataPosition::new(
         1, 1, 1,
@@ -63,6 +61,7 @@ pub fn init_log() {
     println!("{:?}", config_path);
     // Path::new("log4rs.yaml").metadata()?.
     log4rs::init_file(config_path, Default::default()).unwrap();
+    log::info!("日志初始化成功！");
 }
 
 /// 计算hash
