@@ -29,6 +29,7 @@ impl DataManager {
 
         let (send, mut recv) = mpsc::channel(10000);
 
+        // 写入的异步线程
         start_write_consumer(workspace.clone(), max_file_id, recv, index.clone());
 
         DataManager {

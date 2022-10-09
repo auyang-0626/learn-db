@@ -11,16 +11,13 @@ pub struct DataPosition {
     pub file_id: u32,
     // 偏移量
     pub offset: u32,
-    // value大小
-    pub length: u32,
 }
 
 impl DataPosition {
-    pub fn new(file_id: u32, offset: u32, length: u32) -> Self {
+    pub fn new(file_id: u32, offset: u32) -> Self {
         DataPosition {
             file_id,
             offset,
-            length,
         }
     }
 }

@@ -11,6 +11,7 @@ use crate::index::DataPosition;
 
 mod write_consumer;
 pub mod data_manager;
+mod compression_task;
 
 lazy_static! {
     /// This is an example for using doc comment attributes
@@ -40,7 +41,9 @@ pub async fn read_by_dp(dir: &String, dp: &DataPosition) -> CustomResult<String>
 
     file.seek(SeekFrom::Start(dp.offset as u64)).await;
 
-    let mut buffer = vec![Default::default(); dp.length as usize];
+    let len = file.read_u32().await?;
+
+    let mut buffer = vec![Default::default(); len as usize];
     file.read(&mut buffer[..]).await;
 
     let set_param: DataItem = serde_json::from_str(&String::from_utf8(buffer)?)?;

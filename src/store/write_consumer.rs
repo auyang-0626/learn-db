@@ -1,8 +1,7 @@
-
 use tokio::fs::{File, OpenOptions};
 use tokio::io::AsyncWriteExt;
-use tokio::sync::mpsc::{Receiver};
 use tokio::sync::mpsc::error::TryRecvError;
+use tokio::sync::mpsc::Receiver;
 use tokio::time;
 
 use crate::custom_err::CustomResult;
@@ -10,6 +9,8 @@ use crate::http_param::DataItem;
 use crate::index::DataPosition;
 use crate::index::dynamic_index::DynamicParallelIndexWrapper;
 use crate::store::get_file_name;
+
+const FILE_MAX_SIZE: u32 = 1024 * 1024 * 1;
 
 /// 启动写入消费者
 pub fn start_write_consumer(workspace: String, max_file_id: u32,
@@ -20,6 +21,12 @@ pub fn start_write_consumer(workspace: String, max_file_id: u32,
         let mut data_file = WriteableFile::new(max_file_id, &workspace).await.unwrap();
 
         loop {
+            // 文件超过最大尺寸时，切换写的新入点
+            if data_file.offset > FILE_MAX_SIZE {
+                data_file = WriteableFile::new(data_file.id + 1, &workspace).await.unwrap();
+            }
+
+            // 批量写入，减少同步次数
             let batch_size = 100;
             let mut vec = Vec::new();
 
@@ -65,9 +72,8 @@ struct WriteableFile {
 
 impl WriteableFile {
     async fn new(id: u32, dir: &String) -> CustomResult<WriteableFile> {
-
         let file_name = get_file_name(id, dir);
-        log::info!("打开或创建可写入文件:{}",file_name);
+        log::info!("打开或创建可写入文件:{}", file_name);
         let f = OpenOptions::new()
             .read(true)
             .write(true)
@@ -83,14 +89,16 @@ impl WriteableFile {
 
     /// 执行写入,并且更新索引
     async fn append(&mut self, events: Vec<DataItem>, index: &DynamicParallelIndexWrapper) -> CustomResult<()> {
+        // todo 这里先写buf，然后一次性写入文件性能会更好，后面再优化
         for data in events {
             let json = serde_json::to_vec(&data)?;
             let len = json.len() as u32;
+            self.file.write_u32(len).await?;
             self.file.write(&json).await?;
 
-            index.push(&data.key, DataPosition::new(self.id, self.offset, len)).await;
+            index.push(&data.key, DataPosition::new(self.id, self.offset)).await;
 
-            self.offset = self.offset + len;
+            self.offset = self.offset + len + 4;
         }
         self.file.sync_data().await?;
         Ok(())
