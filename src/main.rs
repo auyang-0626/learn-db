@@ -5,9 +5,13 @@ use std::path::PathBuf;
 use actix_web::{App, HttpResponse, HttpServer, Responder, web};
 use log::info;
 
+#[macro_use]
+extern crate lazy_static;
+
 use crate::http_param::{DataItem, View};
 use crate::index::DataPosition;
 use crate::index::dynamic_index::DynamicParallelIndexWrapper;
+use crate::store::data_manager::DataManager;
 
 mod index;
 mod custom_err;
@@ -17,11 +21,12 @@ mod store;
 #[actix_web::main]
 async fn main() -> std::io::Result<()> {
     init_log();
-    let index = DynamicParallelIndexWrapper::new(8);
+
+    let dm = DataManager::new(String::from("/Users/yang/logs/learn-db"));
 
     HttpServer::new(move || {
         App::new()
-            .app_data(web::Data::new(index.clone()))
+            .app_data(web::Data::new(dm.clone()))
             .service(hello)
             .service(find)
             .service(push)
@@ -38,19 +43,17 @@ async fn hello() -> impl Responder {
 }
 
 #[actix_web::get("/get/{key}")]
-async fn find(key: web::Path<String>, index: web::Data<DynamicParallelIndexWrapper>) -> impl Responder {
+async fn find(key: web::Path<String>, dm: web::Data<DataManager>) -> impl Responder {
     let key = key.into_inner();
-    let res = index.find(&key).await;
+    let res = dm.find(&key).await;
     info!("url=/get/{},value={:?}", &key, res);
     web::Json(View::success(res))
 }
 
 #[actix_web::post("/set")]
-async fn push(param: web::Json<DataItem>, index: web::Data<DynamicParallelIndexWrapper>) -> impl Responder {
+async fn push(param: web::Json<DataItem>, dm: web::Data<DataManager>) -> impl Responder {
     let param = param.into_inner();
-    index.push(&param.key, DataPosition::new(
-        1, 1, 1,
-    )).await;
+    dm.push(param).await;
     info!("url = /set");
     web::Json(View::success(""))
 }

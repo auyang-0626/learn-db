@@ -7,9 +7,10 @@ use tokio::sync::mpsc::Sender;
 use crate::custom_err::CustomResult;
 use crate::http_param::DataItem;
 use crate::index::dynamic_index::DynamicParallelIndexWrapper;
-use crate::store::ReadableFile;
+use crate::store::{read_by_dp};
 use crate::store::write_consumer::start_write_consumer;
 
+#[derive(Clone)]
 pub struct DataManager {
     // 工作目录
     workspace: Arc<String>,
@@ -46,9 +47,7 @@ impl DataManager {
     pub async fn find(&self, key: &String) -> Option<String> {
         let dp = self.index.find(key).await?;
 
-        let mut raf = ReadableFile::new(dp.file_id, self.workspace.borrow()).await.ok()?;
-
-        raf.read(&dp).await.ok()
+        read_by_dp(self.workspace.borrow(), &dp).await.ok()
     }
 }
 
@@ -65,7 +64,7 @@ mod tests {
         let dm = DataManager::new(String::from("/Users/yang/logs/learn-db"));
 
 
-        for i in 0..100000 {
+        for i in 0..10000 {
             dm.push(DataItem {
                 key: format!("name_{}", i),
                 value: format!("ygy_{}", i),

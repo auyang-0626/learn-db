@@ -41,11 +41,12 @@ pub fn start_write_consumer(workspace: String, max_file_id: u32,
                     }
                 }
             }
-            log::info!("开始处理写入，size={}", vec.len());
             if vec.is_empty() {
                 // 说明当前写入请求不多，休眠一段时间
                 time::sleep(time::Duration::from_millis(100)).await
             } else {
+                log::info!("开始处理写入，size={}", vec.len());
+
                 data_file.append(vec, &index).await;
             }
         }
