@@ -2,6 +2,7 @@ use tokio::fs::{File, OpenOptions};
 use tokio::io::AsyncWriteExt;
 use tokio::sync::mpsc::error::TryRecvError;
 use tokio::sync::mpsc::Receiver;
+use tokio::sync::oneshot::Sender as Callback;
 use tokio::time;
 
 use crate::custom_err::CustomResult;
@@ -9,21 +10,20 @@ use crate::http_param::DataItem;
 use crate::index::DataPosition;
 use crate::index::dynamic_index::DynamicParallelIndexWrapper;
 use crate::store::get_file_name;
-
-const FILE_MAX_SIZE: u32 = 1024 * 1024 * 1;
+use crate::Config;
 
 /// 启动写入消费者
-pub fn start_write_consumer(workspace: String, max_file_id: u32,
-                            mut recv: Receiver<DataItem>,
+pub fn start_write_consumer(cnf: Config, max_file_id: u32,
+                            mut recv: Receiver<WriteEvent>,
                             index: DynamicParallelIndexWrapper) {
     tokio::spawn(async move {
         log::info!("写入消费者已启动!");
-        let mut data_file = WriteableFile::new(max_file_id, &workspace).await.unwrap();
+        let mut data_file = WriteableFile::new(max_file_id, &cnf.workspace).await.unwrap();
 
         loop {
             // 文件超过最大尺寸时，切换写的新入点
-            if data_file.offset > FILE_MAX_SIZE {
-                data_file = WriteableFile::new(data_file.id + 1, &workspace).await.unwrap();
+            if data_file.offset > cnf.max_file_size {
+                data_file = WriteableFile::new(data_file.id + 1, &cnf.workspace).await.unwrap();
             }
 
             // 批量写入，减少同步次数
@@ -60,6 +60,42 @@ pub fn start_write_consumer(workspace: String, max_file_id: u32,
     });
 }
 
+/// 写入事件
+pub struct WriteEvent {
+    // 数据
+    data_item: DataItem,
+    // 如果传了该值，表示先比较，如果等于传入的，才会更新
+    compare_dp: Option<DataPosition>,
+    // 写入完成的回执
+    callback: Option<Callback<()>>,
+}
+
+impl WriteEvent {
+    pub fn new_simple_event(data_item: DataItem) -> WriteEvent {
+        WriteEvent {
+            data_item,
+            compare_dp: None,
+            callback: None,
+        }
+    }
+
+    pub fn new_compare_event(data_item: DataItem, dp: DataPosition) -> WriteEvent {
+        WriteEvent {
+            data_item,
+            compare_dp: Some(dp),
+            callback: None,
+        }
+    }
+
+    pub fn new_callback_event(data_item: DataItem, dp: Option<DataPosition>, callback: Callback<()>) -> WriteEvent {
+        WriteEvent {
+            data_item,
+            compare_dp: dp,
+            callback: Some(callback),
+        }
+    }
+}
+
 
 struct WriteableFile {
     // 文件编号
@@ -88,9 +124,30 @@ impl WriteableFile {
     }
 
     /// 执行写入,并且更新索引
-    async fn append(&mut self, events: Vec<DataItem>, index: &DynamicParallelIndexWrapper) -> CustomResult<()> {
+    async fn append(&mut self, events: Vec<WriteEvent>, index: &DynamicParallelIndexWrapper) -> CustomResult<()> {
         // todo 这里先写buf，然后一次性写入文件性能会更好，后面再优化
-        for data in events {
+
+        let mut callbacks = Vec::new();
+
+        for event in events {
+            let data = event.data_item;
+
+            // 处理比较再写入的场景
+            if let Some(dp) = event.compare_dp {
+                match index.find(&data.key).await {
+                    None => {
+                        // 没有索引，说明数据被删除了，不需要写入了
+                        return Ok(());
+                    }
+                    Some(i_dp) => {
+                        if dp != i_dp {
+                            // 说明数据已经更新了，也不需要再写入了
+                            return Ok(());
+                        }
+                    }
+                }
+            }
+
             let json = serde_json::to_vec(&data)?;
             let len = json.len() as u32;
             self.file.write_u32(len).await?;
@@ -99,8 +156,17 @@ impl WriteableFile {
             index.push(&data.key, DataPosition::new(self.id, self.offset)).await;
 
             self.offset = self.offset + len + 4;
+
+            if let Some(callback) = event.callback {
+                callbacks.push(callback);
+            }
         }
         self.file.sync_data().await?;
+
+        // 处理需要写入完成回执的场景
+        for callback in callbacks {
+            callback.send(());
+        }
         Ok(())
     }
 }

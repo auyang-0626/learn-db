@@ -1,6 +1,7 @@
 use std::error::Error;
 use std::string::FromUtf8Error;
 use crate::http_param::DataItem;
+use crate::store::write_consumer::WriteEvent;
 
 
 pub type CustomResult<T> = std::result::Result<T, CustomError>;
@@ -42,8 +43,8 @@ impl From<FromUtf8Error> for CustomError {
     }
 }
 
-impl From<tokio::sync::mpsc::error::SendError<DataItem>> for CustomError {
-    fn from(e: tokio::sync::mpsc::error::SendError<DataItem>) -> Self {
+impl From<tokio::sync::mpsc::error::SendError<WriteEvent>> for CustomError {
+    fn from(e: tokio::sync::mpsc::error::SendError<WriteEvent>) -> Self {
         common_err(e.to_string())
     }
 }

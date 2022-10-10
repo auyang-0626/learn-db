@@ -9,7 +9,7 @@ use crate::custom_err::CustomResult;
 use crate::http_param::DataItem;
 use crate::index::DataPosition;
 
-mod write_consumer;
+pub mod write_consumer;
 pub mod data_manager;
 mod compression_task;
 
