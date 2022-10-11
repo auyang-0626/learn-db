@@ -15,7 +15,7 @@ impl<T> View<T> {
     }
 }
 
-#[derive(Deserialize, Serialize)]
+#[derive(Deserialize, Serialize,Clone)]
 pub struct DataItem {
     pub key: String,
     pub value: String,

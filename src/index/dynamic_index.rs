@@ -191,7 +191,7 @@ impl DynamicParallelIndexWrapper {
             drop(inner_guard);
 
             let new_size = min(curr_size * 8, u32::MAX as u64);
-            info!("curr_size={},new_size={}", curr_size, new_size);
+            info!("满足扩容条件,curr_size={},new_size={}", curr_size, new_size);
 
             let new_index = ParallelIndex::new(new_size);
             let mut inner_guard_mut = self.inner.write().await;

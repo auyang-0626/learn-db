@@ -9,7 +9,7 @@ use crate::custom_err::CustomResult;
 use crate::http_param::DataItem;
 use crate::index::DataPosition;
 use crate::index::dynamic_index::DynamicParallelIndexWrapper;
-use crate::store::get_file_name;
+use crate::store::get_log_file_name;
 use crate::Config;
 
 /// 启动写入消费者
@@ -108,7 +108,7 @@ struct WriteableFile {
 
 impl WriteableFile {
     async fn new(id: u32, dir: &String) -> CustomResult<WriteableFile> {
-        let file_name = get_file_name(id, dir);
+        let file_name = get_log_file_name(id, dir);
         log::info!("打开或创建可写入文件:{}", file_name);
         let f = OpenOptions::new()
             .read(true)
@@ -137,12 +137,12 @@ impl WriteableFile {
                 match index.find(&data.key).await {
                     None => {
                         // 没有索引，说明数据被删除了，不需要写入了
-                        return Ok(());
+                        continue;
                     }
                     Some(i_dp) => {
                         if dp != i_dp {
                             // 说明数据已经更新了，也不需要再写入了
-                            return Ok(());
+                            continue;
                         }
                     }
                 }

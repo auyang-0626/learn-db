@@ -34,7 +34,7 @@ impl Config {
     pub fn new(workspace: String) -> Config {
         Config {
             workspace,
-            max_file_size: 1024 * 1024 * 1,
+            max_file_size: 1024 * 1024 * 1024,
             max_file_num: 10,
         }
     }
@@ -51,7 +51,7 @@ async fn main() -> std::io::Result<()> {
         panic!("workspace[{}] 不合法,必须存在且是文件夹！", config.workspace);
     }
 
-    let dm = DataManager::new(config);
+    let dm = DataManager::new(config).await;
 
     HttpServer::new(move || {
         App::new()
@@ -84,7 +84,6 @@ async fn find(key: web::Path<String>, dm: web::Data<DataManager>) -> impl Respon
 async fn push(param: web::Json<DataItem>, dm: web::Data<DataManager>) -> impl Responder {
     let param = param.into_inner();
     dm.push(WriteEvent::new_simple_event(param)).await;
-    info!("url = /set");
     web::Json(View::success(""))
 }
 
@@ -95,7 +94,6 @@ async fn push_sync(param: web::Json<DataItem>, dm: web::Data<DataManager>) -> im
     dm.push(WriteEvent::new_callback_event(param, None, tx)).await;
     // 等待写入完成
     rx.await.unwrap();
-    info!("url = /set");
     web::Json(View::success(""))
 }
 
